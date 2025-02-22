@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-4">
+        <div class="card text-white bg-success mb-3">
+            <div class="card-header">Завершенные записи</div>
+            <div class="card-body">
+                <h5 class="card-title">{{ stats.successful_syncs }}</h5>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card text-white bg-danger mb-3">
+            <div class="card-header">Проваленные записи</div>
+            <div class="card-body">
+                <h5 class="card-title">{{ stats.failed_syncs }}</h5>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card text-white bg-primary mb-3">
+            <div class="card-header">Справочники</div>
+            <div class="card-body">
+                <h5 class="card-title">{{ stats.total_mappings }}</h5>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

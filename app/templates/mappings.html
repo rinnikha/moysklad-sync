@@ -1,0 +1,350 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="row">
+  <div class="col-md-5">
+    <h2 class="mb-4">{{ 'Изменить' if editing else 'Создать' }} Справочник</h2>
+    
+    {% if form.errors %}
+    <div class="alert alert-danger">
+      <h4>Form Errors</h4>
+      <ul>
+        {% for field, errors in form.errors.items() %}
+          <li>{{ field }}: {{ ', '.join(errors) }}</li>
+        {% endfor %}
+      </ul>
+    </div>
+    {% endif %}
+    
+    <form method="POST" id="mapping-form">
+        {{ form.csrf_token }}
+      
+      <!-- MS1 Counterparty -->
+      <div class="form-group position-relative">
+        <label for="ms1_cp_search">МС1 Контрагент<span class="text-danger">*</span></label>
+        <input type="text" class="form-control search-input" id="ms1_cp_search" name="{{ form.ms1_cp_search.name }}"
+               data-endpoint="{{ url_for('main.search_ms1_counterparties') }}"
+               placeholder="Поиск по наименованию...">
+        {{ form.ms1_cp_meta(class="d-none", id="ms1_cp_meta_hidden") }}
+        <div class="search-results"></div>
+        <div class="selected-item mt-2">
+          <strong>Выбрано:</strong>
+          <span class="selected-name"></span>
+          <button type="button" class="btn btn-sm btn-danger ml-2 clear-selection">×</button>
+        </div>
+      </div>
+      
+      <!-- MS2 Organization -->
+      <div class="form-group position-relative">
+        <label for="ms2_org_search">МС2 Организация <span class="text-danger">*</span></label>
+        <input type="text" class="form-control search-input" id="ms2_org_search" name="{{ form.ms2_org_search.name }}"
+               data-endpoint="{{ url_for('main.search_ms2_organizations') }}"
+               placeholder="Поиск по наименованию...">
+        {{ form.ms2_org_meta(class="d-none", id="ms2_org_meta_hidden") }}
+        <div class="search-results"></div>
+        <div class="selected-item mt-2">
+          <strong>Выбрано:</strong>
+          <span class="selected-name"></span>
+          <button type="button" class="btn btn-sm btn-danger ml-2 clear-selection">×</button>
+        </div>
+      </div>
+      
+      <!-- Group -->
+      <div class="form-group position-relative">
+        <label for="group_search">Владелец-отдел<span class="text-danger">*</span></label>
+        <input type="text" class="form-control search-input" id="group_search" name="{{ form.group_search.name }}"
+               data-endpoint="{{ url_for('main.search_ms2_groups') }}"
+               placeholder="Поиск по наименованию...">
+        {{ form.group_meta(class="d-none", id="group_meta_hidden") }}
+        <div class="search-results"></div>
+        <div class="selected-item mt-2">
+          <strong>Выбрано:</strong>
+          <span class="selected-name"></span>
+          <button type="button" class="btn btn-sm btn-danger ml-2 clear-selection">×</button>
+        </div>
+      </div>
+      
+      <!-- Owner -->
+      <div class="form-group position-relative">
+        <label for="owner_search">Владелец-сотрудник<span class="text-danger">*</span></label>
+        <input type="text" class="form-control search-input" id="owner_search" name="{{ form.owner_search.name }}"
+               data-endpoint="{{ url_for('main.search_ms2_employees') }}"
+               placeholder="Поиск по наименованию...">
+        {{ form.owner_meta(class="d-none", id="owner_meta_hidden") }}
+        <div class="search-results"></div>
+        <div class="selected-item mt-2">
+          <strong>Выбрано:</strong>
+          <span class="selected-name"></span>
+          <button type="button" class="btn btn-sm btn-danger ml-2 clear-selection">×</button>
+        </div>
+      </div>
+      
+      <!-- Store -->
+      <div class="form-group position-relative">
+        <label for="store_search">Склад<span class="text-danger">*</span></label>
+        <input type="text" class="form-control search-input" id="store_search" name="{{ form.store_search.name }}"
+               data-endpoint="{{ url_for('main.search_ms2_stores') }}"
+               placeholder="Поиск по наименованию...">
+        {{ form.store_meta(class="d-none", id="store_meta_hidden") }}
+        <div class="search-results"></div>
+        <div class="selected-item mt-2">
+          <strong>Выбрано:</strong>
+          <span class="selected-name"></span>
+          <button type="button" class="btn btn-sm btn-danger ml-2 clear-selection">×</button>
+        </div>
+      </div>
+      
+      {{ form.submit(class="btn btn-primary mt-3") }}
+    </form>
+  </div>
+  
+  <div class="col-md-7">
+    <h2 class="mb-4">Таблица Справочников</h2>
+    <div class="table-responsive">
+      <table class="table table-hover">
+        <thead class="thead-light">
+          <tr>
+            <th>Контрагент МС1 (диллер)</th>
+            <th>Организация МС2</th>
+            <th>Владелец-отдел МС2</th>
+            <th>Склад МС2</th>
+            <th>Действия</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for mapping in mappings %}
+          <tr>
+            <td>{{ mapping.ms1_cp_name }}</td>
+            <td>{{ mapping.ms2_org_name }}</td>
+            <td>{{ mapping.group_name }}</td>
+            <td>{{ mapping.store_name }}</td>
+            <td>
+              <a href="{{ url_for('main.edit_mapping', id=mapping.id) }}" class="btn btn-sm btn-primary">
+                <i class="fas fa-edit"></i>
+              </a>
+              <form action="{{ url_for('main.delete_mapping', id=mapping.id) }}" method="POST" class="d-inline">
+                <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Вы уверены?')">
+                  <i class="fas fa-trash"></i>
+                </button>
+              </form>
+            </td>
+          </tr>
+          {% else %}
+          <tr>
+            <td colspan="4" class="text-center">Нет записей</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+{% if editing %}
+  <script>
+  // Define the mapping data from your database.
+  // The visible display values (for search inputs) come from, for example, mapping.ms1_cp_name,
+  // while the meta fields are passed as JSON.
+  const mappingData = {
+    ms1_cp_search: "{{ mapping.ms1_cp_name }}",
+    ms1_cp_meta: {{ mapping.ms1_cp_meta|tojson }},
+    ms2_org_search: "{{ mapping.ms2_org_name }}",
+    ms2_org_meta: {{ mapping.ms2_org_meta|tojson }},
+    group_search: "{{ mapping.group_name }}",
+    group_meta: {{ mapping.group_meta|tojson }},
+    owner_search: "{{ mapping.owner_name }}",
+    owner_meta: {{ mapping.owner_meta|tojson }},
+    store_search: "{{ mapping.store_name }}",
+    store_meta: {{ mapping.store_meta|tojson }}
+  };
+
+  // Utility function to fill an input and its associated hidden field.
+  const fillField = (searchInputId, hiddenFieldName, displayValue) => {
+    const input = document.getElementById(searchInputId);
+    // Select the hidden field using its name attribute.
+    const hidden = document.querySelector(`input[name="${hiddenFieldName}"]`);
+    const selected = input.parentElement.querySelector('.selected-name');
+    if (input && hidden && selected) {
+      input.value = displayValue;
+      // Set the hidden field's value as a JSON string.
+      hidden.value = JSON.stringify(mappingData[hiddenFieldName]);
+      selected.textContent = displayValue;
+      input.parentElement.querySelector('.selected-item').style.display = 'flex';
+    }
+  };
+
+  // Fill each field using the proper IDs.
+  fillField('ms1_cp_search', 'ms1_cp_meta', mappingData.ms1_cp_search);
+  fillField('ms2_org_search', 'ms2_org_meta', mappingData.ms2_org_search);
+  fillField('group_search', 'group_meta', mappingData.group_search);
+  fillField('owner_search', 'owner_meta', mappingData.owner_search);
+  fillField('store_search', 'store_meta', mappingData.store_search);
+  </script>
+{% endif %}
+
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  // Debounce helper
+  const debounce = (func, delay = 300) => {
+    let timeout;
+    return (...args) => {
+      clearTimeout(timeout);
+      timeout = setTimeout(() => func.apply(this, args), delay);
+    };
+  };
+
+  // Search handler
+  const handleSearch = debounce(async (input, resultsContainer) => {
+    const searchTerm = input.value.trim();
+    const endpoint = input.dataset.endpoint;
+    if (searchTerm.length > 2) {
+      try {
+        const response = await fetch(`${endpoint}?q=${encodeURIComponent(searchTerm)}`);
+        const items = await response.json();
+        resultsContainer.innerHTML = items.map(item => `
+          <div class="search-item" data-meta='${JSON.stringify(item.meta)}' data-name="${item.name}">
+            ${item.name}
+          </div>
+        `).join('');
+      } catch (error) {
+        console.error('Search failed:', error);
+        resultsContainer.innerHTML = '<div class="text-muted p-2">Search unavailable</div>';
+      }
+    } else {
+      resultsContainer.innerHTML = '';
+    }
+  });
+
+  // Setup event listeners on each search input
+  document.querySelectorAll('.search-input').forEach(input => {
+    const resultsContainer = input.parentElement.querySelector('.search-results');
+    const hiddenInput = input.parentElement.querySelector('input[type="hidden"]');
+
+    input.addEventListener('input', () => {
+      handleSearch(input, resultsContainer);
+      resultsContainer.style.display = input.value.trim().length > 0 ? 'block' : 'none';
+    });
+
+    input.addEventListener('focus', () => {
+      if (input.value.trim().length > 0) {
+        resultsContainer.style.display = 'block';
+      }
+    });
+
+    input.addEventListener('blur', () => {
+      setTimeout(() => resultsContainer.style.display = 'none', 200);
+    });
+  });
+
+  // Global click handler for selection or clearing a selection
+  document.addEventListener('click', (e) => {
+    const searchItem = e.target.closest('.search-item');
+    const clearBtn = e.target.closest('.clear-selection');
+
+    if (searchItem) {
+      const parent = searchItem.closest('.form-group');
+      const input = parent.querySelector('.search-input');
+      const hiddenInput = parent.querySelector('input[type="hidden"]');
+      const selectedName = parent.querySelector('.selected-name');
+      
+      // Update the visible input and hidden field with selected data
+      input.value = searchItem.dataset.name;
+      hiddenInput.value = searchItem.dataset.meta;
+      console.log(`Set ${hiddenInput.name} to: `, hiddenInput.value);
+      selectedName.textContent = searchItem.dataset.name;
+      parent.querySelector('.search-results').innerHTML = '';
+      parent.querySelector('.selected-item').style.display = 'flex';
+    }
+
+    if (clearBtn) {
+      const parent = clearBtn.closest('.form-group');
+      const input = parent.querySelector('.search-input');
+      const hiddenInput = parent.querySelector('input[type="hidden"]');
+      const selectedName = parent.querySelector('.selected-name');
+      
+      input.value = '';
+      hiddenInput.value = '';
+      selectedName.textContent = '';
+      parent.querySelector('.selected-item').style.display = 'none';
+    }
+  });
+
+  // If editing, pre-fill the fields using mappingData
+  {% if editing %}
+  const mappingData = {
+    ms1_cp_search: {{ mapping.ms1_cp_name}},
+    ms1_cp_meta: {{ mapping.ms1_cp_meta }},
+    ms2_org_search: {{ mapping.ms2_org_name}},
+    ms2_org_meta: {{ mapping.ms2_org_meta }},
+    group_search: {{ mapping.group_name }},
+    group_meta: {{ mapping.group_meta }},
+    group_search: {{ mapping.group_name }},
+    owner_meta: {{ mapping.owner_meta }},
+    store_search: {{ mapping.store_name }},
+    store_meta: {{ mapping.store_meta }}
+  };
+
+  // Utility function to fill a field based on provided IDs and mapping data key
+  const fillField = (searchInputId, hiddenFieldName, displayName) => {
+    const input = document.getElementById(searchInputId);
+    const hidden = document.querySelector(`input[name="${hiddenFieldName}"]`);
+    const selected = input.parentElement.querySelector('.selected-name');
+    if (input && hidden && selected) {
+      input.value = displayName;
+      hidden.value = JSON.stringify(mappingData[hiddenFieldName]);
+      selected.textContent = displayName;
+      input.parentElement.querySelector('.selected-item').style.display = 'flex';
+    }
+  };
+
+  fillField('ms1_cp_name', 'ms1_cp_meta', '{{ mapping.ms1_cp_name }}');
+  fillField('ms2_org_name', 'ms2_org_meta', '{{ (mapping.ms2_org_meta|fromjson).name }}');
+  fillField('group_name', 'group_meta', '{{ (mapping.group_meta|fromjson).name }}');
+  fillField('owner_name', 'owner_meta', '{{ (mapping.owner_meta|fromjson).name }}');
+  fillField('store_name', 'store_meta', '{{ (mapping.store_meta|fromjson).name }}');
+  {% endif %}
+});
+</script>
+
+<style>
+.search-results {
+  display: none;
+  position: absolute;
+  z-index: 1000;
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  width: calc(100% - 30px);
+  max-height: 200px;
+  overflow-y: auto;
+}
+.search-item {
+  padding: 8px 12px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+.search-item:hover {
+  background-color: #f8f9fa;
+}
+.selected-item {
+  display: none;
+  align-items: center;
+  padding: 8px;
+  background-color: #f8f9fa;
+  border-radius: 4px;
+  margin-top: 8px;
+}
+.selected-name {
+  margin-left: 8px;
+  margin-right: 12px;
+}
+.clear-selection {
+  padding: 0 6px;
+  line-height: 1;
+}
+.position-relative {
+  position: relative;
+}
+</style>
+{% endblock %}

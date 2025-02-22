@@ -1,0 +1,302 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container-fluid">
+    <h2 class="mb-4">Записи Синхронизации</h2>
+
+    <div class="mt-3">
+        {% if next_sync %}
+        <div class="alert alert-info">
+            Следующее запланирванная синхронизация: <span id="next-sync-timer">{{ next_sync }}</span>
+        </div>
+        {% endif %}
+    </div>
+    
+    <div class="mb-4">
+        <button id="manual-sync" class="btn btn-primary">
+            <i class="fas fa-sync"></i> Синхронизировать
+        </button>
+        <div id="sync-progress" class="d-none mt-2">
+            <div class="progress">
+                <div class="progress-bar progress-bar-striped progress-bar-animated" 
+                     style="width: 100%"></div>
+            </div>
+            <small class="text-muted">Синхронизация заказов...</small>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <form method="GET" action="{{ url_for('main.logs') }}">
+                <div class="row">
+                    <div class="col-md-3">
+                        <label>Контрагент МС1 (диллер)</label>
+                        <select name="counterparty" class="form-control">
+                            <option value="">Все</option>
+                            {% for cp in counterparties %}
+                            <option value="{{ cp.id }}" {% if request.args.counterparty == cp.id|string %}selected{% endif %}>
+                                {{ cp.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <div class="col-md-2">
+                        <label>Статус</label>
+                        <select name="status" class="form-control">
+                            <option value="">Все</option>
+                            <option value="1" {% if request.args.status == 'success' %}selected{% endif %}>Завершено</option>
+                            <option value="2" {% if request.args.status == 'error' %}selected{% endif %}>Ошибка</option>
+                        </select>
+                    </div>
+                    
+                    <div class="col-md-3">
+                        <label>Период</label>
+                        <div class="input-daterange input-group">
+                            <input type="date" class="form-control" name="start_date" 
+                                   value="{{ request.args.start_date }}">
+                            <div class="input-group-append">
+                                <span class="input-group-text"> - </span>
+                            </div>
+                            <input type="date" class="form-control" name="end_date" 
+                                   value="{{ request.args.end_date }}">
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-2 align-self-end">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-filter"></i> Фильтр
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Logs Table -->
+    <div class="card">
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead class="thead-light">
+                        <tr>
+                            <th>Дата заказа МС1</th>
+                            <th>Статус</th>
+                            <th>Контрагент МС1 (диллер)</th>
+                            <th>Комментарии</th>
+                            <th>Действия</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for log in logs.items %}
+                        <tr class="{% if log.status == 1 %}table-success{% else %}table-danger{% endif %}">
+                            <td>
+                                {% if log.sync_time %}
+                                {{ log.sync_time.strftime('%Y-%m-%d %H:%M') }}
+                                {% else %}
+                                -
+                                {% endif %}
+                            </td>
+                            <td>{{ log.status|upper }}</td>
+                            <td>
+                                {% if log.counterparty %}
+                                {{ log.counterparty.ms1_cp_name }}
+                                {% else %}
+                                -
+                                {% endif %}
+                            </td>
+                            <td>
+                                <span class="log-message" data-toggle="tooltip" title="{{ log.details }}">
+                                {% if log.message %}
+                                {{ log.message|truncate(50) }}
+                                {% else %}
+                                -
+                                {% endif %}
+                                </span>
+                            </td>
+                            <td>
+                                {% if log.status == 2 %}
+                                <button class="btn btn-sm btn-warning retry-btn" 
+                                        data-log-id="{{ log.id }}"
+                                        data-order-id="{{ log.order_id }}">
+                                    <i class="fas fa-redo"></i> Повторить
+                                </button>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="5" class="text-center">Не найдено записей</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Pagination -->
+            <nav>
+                <ul class="pagination">
+                    {% for page_num in logs.iter_pages() %}
+                        {% if page_num %}
+                            <li class="page-item {% if page_num == logs.page %}active{% endif %}">
+                                <a class="page-link" 
+                                   href="{{ url_for('main.logs', 
+                                        page=page_num,
+                                        status=request.args.get('status'),
+                                        counterparty=request.args.get('counterparty'),
+                                        start_date=request.args.get('start_date'),
+                                        end_date=request.args.get('end_date')) }}">
+                                    {{ page_num }}
+                                </a>
+                            </li>
+                        {% else %}
+                            <li class="page-item disabled">
+                                <span class="page-link">...</span>
+                            </li>
+                        {% endif %}
+                    {% endfor %}
+                </ul>
+            </nav>
+        </div>
+    </div>
+</div>
+
+<script>
+document.getElementById('manual-sync').addEventListener('click', async () => {
+    const btn = document.getElementById('manual-sync');
+    const progress = document.getElementById('sync-progress');
+    
+    try {
+        // Disable button and show progress
+        btn.disabled = true;
+        progress.classList.remove('d-none');
+        
+        // Start sync
+        const response = await fetch('/sync-now', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        // Refresh logs after short delay
+        setTimeout(() => {
+            window.location.reload();
+        }, 1000);
+
+    } catch (error) {
+        alert(`Sync failed: ${error.message}`);
+    } finally {
+        btn.disabled = false;
+        progress.classList.add('d-none');
+    }
+});
+
+function updateTimer() {
+    const timerElement = document.getElementById('next-sync-timer');
+    if (!timerElement) return;
+
+    const nextRun = new Date(timerElement.dataset.originalTime);
+    const now = new Date();
+    
+    // Calculate difference in seconds
+    let diff = Math.floor((nextRun - now) / 1000);
+    
+    if (diff <= 0) {
+        timerElement.innerHTML = 'Running now...';
+        setTimeout(updateTimer, 1000);
+        return;
+    }
+
+    // Convert to hours, minutes, seconds
+    const hours = Math.floor(diff / 3600);
+    diff %= 3600;
+    const minutes = Math.floor(diff / 60);
+    const seconds = diff % 60;
+
+    // Format display
+    let display = '';
+    if (hours > 0) display += `${hours}h `;
+    if (minutes > 0) display += `${minutes}m `;
+    display += `${seconds}s`;
+    
+    timerElement.innerHTML = display;
+    setTimeout(updateTimer, 1000);
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+
+    const timerElement = document.getElementById('next-sync-timer');
+    if (timerElement) {
+        // Store original time in data attribute
+        const originalTime = timerElement.textContent;
+        timerElement.dataset.originalTime = originalTime;
+        updateTimer();
+    }
+
+    // Retry button handler
+    document.querySelectorAll('.retry-btn').forEach(btn => {
+        btn.addEventListener('click', async () => {
+            const logId = btn.dataset.logId;
+            const orderId = btn.dataset.orderId;
+            
+            try {
+                const response = await fetch(`/logs/${logId}/retry`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ order_id: orderId })
+                });
+                
+                if (response.ok) {
+                    window.location.reload();
+                } else {
+                    alert('Retry failed');
+                }
+            } catch (error) {
+                console.error('Retry error:', error);
+                alert('Retry failed');
+            }
+        });
+    });
+
+    // Tooltips
+    $('[data-toggle="tooltip"]').tooltip();
+});
+</script>
+
+<style>
+#next-sync-timer {
+    font-weight: bold;
+    color: #2c3e50;
+    background-color: #f8f9fa;
+    padding: 3px 8px;
+    border-radius: 4px;
+    border: 1px solid #dee2e6;
+}
+
+#manual-sync {
+    transition: all 0.3s ease;
+}
+
+#manual-sync:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+}
+
+.progress {
+    height: 20px;
+    margin-bottom: 5px;
+}
+
+.log-message {
+    cursor: help;
+    border-bottom: 1px dotted #666;
+}
+</style>
+{% endblock %}
